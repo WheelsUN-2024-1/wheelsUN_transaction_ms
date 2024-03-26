@@ -15,7 +15,7 @@ func main() {
 	router := gin.Default()
 
 	// Configure routes
-	routes.PersonRouter(router) //
+
 	routes.TransactionRouter(router)
 	routes.CreditCardRouter(router)
 
