@@ -3,9 +3,12 @@ package controllers
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"wheelsUN_transaction_ms/configs"
 	"wheelsUN_transaction_ms/database"
@@ -13,39 +16,52 @@ import (
 	"gorm.io/gorm"
 )
 
-var key = []byte("my32bytekey12345678901234567890") // Clave constante de 32 bytes
+var key = []byte("my16bytekey12345")
 
-func encrypt(plaintext []byte) ([]byte, error) {
+// EncryptString encrypts a string using AES encryption
+func encrypt(text string) (string, error) {
+	plaintext := []byte(text)
+
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	ciphertext := make([]byte, aes.BlockSize+len(plaintext))
 	iv := ciphertext[:aes.BlockSize]
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return "", err
+	}
 
 	stream := cipher.NewCFBEncrypter(block, iv)
 	stream.XORKeyStream(ciphertext[aes.BlockSize:], plaintext)
 
-	return ciphertext, nil
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-func decrypt(ciphertext []byte) ([]byte, error) {
+// DecryptString decrypts an AES-encrypted string
+func decrypt(ciphertext string) (string, error) {
+	encrypted, err := base64.StdEncoding.DecodeString(ciphertext)
+	if err != nil {
+		return "", err
+	}
+
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	if len(ciphertext) < aes.BlockSize {
-		return nil, fmt.Errorf("ciphertext too short")
+	if len(encrypted) < aes.BlockSize {
+		return "", fmt.Errorf("ciphertext too short")
 	}
-	iv := ciphertext[:aes.BlockSize]
-	ciphertext = ciphertext[aes.BlockSize:]
+
+	iv := encrypted[:aes.BlockSize]
+	encrypted = encrypted[aes.BlockSize:]
 
 	stream := cipher.NewCFBDecrypter(block, iv)
-	stream.XORKeyStream(ciphertext, ciphertext)
+	stream.XORKeyStream(encrypted, encrypted)
 
-	return ciphertext, nil
+	return string(encrypted), nil
 }
 
 func PostCreditCard(w http.ResponseWriter, r *http.Request) {
@@ -63,15 +79,10 @@ func PostCreditCard(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Database connection is not initialized", http.StatusInternalServerError)
 		return
 	}
-	encryptedNumber, err := encrypt([]byte(creditcard.Number))
-	encryptedName, err := encrypt([]byte(creditcard.Name))
-	encryptedSecurityCode, err := encrypt([]byte(creditcard.SecurityCode))
-	encryptedExpirationDate, err := encrypt([]byte(creditcard.ExpirationDate))
-
-	creditcard.Number = string(encryptedNumber)
-	creditcard.Name = string(encryptedName)
-	creditcard.SecurityCode = string(encryptedSecurityCode)
-	creditcard.ExpirationDate = string(encryptedExpirationDate)
+	creditcard.Number, err = encrypt(creditcard.Number)
+	creditcard.Name, err = encrypt(creditcard.Name)
+	creditcard.SecurityCode, err = encrypt(creditcard.SecurityCode)
+	creditcard.ExpirationDate, err = encrypt(creditcard.ExpirationDate)
 
 	// Crear la entrada en la base de datos
 	result := configs.DB.Create(&creditcard)
@@ -119,15 +130,15 @@ func GetCreditCardByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	encryptedNumber, err := decrypt([]byte(creditcard.Number))
-	encryptedName, err := decrypt([]byte(creditcard.Name))
-	encryptedSecurityCode, err := decrypt([]byte(creditcard.SecurityCode))
-	encryptedExpirationDate, err := decrypt([]byte(creditcard.ExpirationDate))
+	encryptedNumber, err := decrypt(creditcard.Number)
+	encryptedName, err := decrypt(creditcard.Name)
+	encryptedSecurityCode, err := decrypt(creditcard.SecurityCode)
+	encryptedExpirationDate, err := decrypt(creditcard.ExpirationDate)
 
-	creditcard.Number = string(encryptedNumber)
-	creditcard.Name = string(encryptedName)
-	creditcard.SecurityCode = string(encryptedSecurityCode)
-	creditcard.ExpirationDate = string(encryptedExpirationDate)
+	creditcard.Number = encryptedNumber
+	creditcard.Name = encryptedName
+	creditcard.SecurityCode = encryptedSecurityCode
+	creditcard.ExpirationDate = encryptedExpirationDate
 
 	// 5. Marshal decrypted data into JSON response
 	responseJSON, err := json.Marshal(creditcard)
