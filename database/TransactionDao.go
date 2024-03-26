@@ -4,7 +4,6 @@ import "gorm.io/gorm"
 
 type TransactionDao struct {
 	gorm.Model
-	TransactionId    string `json:"transactionId"`
 	ReferenceCode    string `json:"referenceCode"`
 	Description      string `json:"description"`
 	Value            uint   `json:"value"`

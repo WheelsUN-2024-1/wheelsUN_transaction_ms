@@ -5,10 +5,17 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
+	"wheelsUN_transaction_ms/configs"
+	"wheelsUN_transaction_ms/database"
 	"wheelsUN_transaction_ms/models"
+
+	"gorm.io/gorm"
 )
 
 func GetData(url string, payment interface{}) (string, error) {
@@ -101,7 +108,83 @@ func PostCardPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Enviar la respuesta al cliente
+	// Convertir la estructura de respuesta en XML
+	var resp models.Response
+	err = xml.NewDecoder(strings.NewReader(response)).Decode(&resp)
+	if err != nil {
+		fmt.Println("Error al decodificar XML:", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Crear el objeto de base de datos
+	var dataBase database.TransactionDao
+	dataBase.ReferenceCode = payment.Transaction.Order.ReferenceCode
+	dataBase.Description = payment.Transaction.Order.Description
+	dataBase.Value = payment.Transaction.Order.AdditionalValues.TX_VALUE.Value
+	dataBase.PaymentMethods = payment.Transaction.PaymentMethod
+	dataBase.State = resp.TransactionResponse.State
+	dataBase.TransactionIdPay = resp.TransactionResponse.TransactionId
+	dataBase.OrderId = resp.TransactionResponse.Order
+	dataBase.TripId = 1
+	dataBase.CreditCardId = 1
+
+	// Guardar en la base de datos
+	result := configs.DB.Create(&dataBase)
+	if result.Error != nil {
+		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Convertir el objeto de base de datos a JSON
+	jsonData, err := json.Marshal(dataBase)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Establecer encabezado de respuesta para indicar que se devuelve JSON
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(response))
+	w.Write(jsonData)
+}
+
+func GetTransactionReferenceCode(w http.ResponseWriter, r *http.Request) {
+
+	referenceCode := r.URL.Query().Get("referenceCode")
+	if referenceCode == "" {
+		http.Error(w, "Missing required parameter 'referenceCode' in query string", http.StatusBadRequest)
+		return
+	}
+
+	// 2. Verify database connection
+	if configs.DB == nil {
+		http.Error(w, "Database connection is not initialized", http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Fetch credit card data by ID
+	var transaction database.TransactionDao
+	result := configs.DB.First(&transaction, "reference_code = ?", referenceCode)
+	if result.Error != nil {
+		// Handle potential database errors gracefully (e.g., check for record not found)
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			http.Error(w, "Transaction with referenceCode not found", http.StatusNotFound)
+		} else {
+			http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// 5. Marshal decrypted data into JSON response
+	responseJSON, err := json.Marshal(transaction)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 6. Set response headers and write JSON
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(responseJSON)
 }

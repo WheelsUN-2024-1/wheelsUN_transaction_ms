@@ -13,6 +13,11 @@ func TransactionRouter(router *gin.Engine) {
 			// Envolver la función del controlador dentro de gin.HandlerFunc
 			controllers.PostCardPayment(c.Writer, c.Request)
 		})
-		// Agrega otras rutas relacionadas con las transacciones si es necesario
+
+		routes.GET("/get", func(c *gin.Context) {
+			// Llama al método GetCreditCardByID del controlador
+			controllers.GetTransactionReferenceCode(c.Writer, c.Request)
+		})
+
 	}
 }
