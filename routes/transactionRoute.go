@@ -7,9 +7,9 @@ import (
 )
 
 func TransactionRouter(router *gin.Engine) {
-	routes := router.Group("/api/transactions")
+	routes := router.Group("/transaction")
 	{
-		routes.POST("cardpayment", func(c *gin.Context) {
+		routes.POST("/create", func(c *gin.Context) {
 			// Envolver la función del controlador dentro de gin.HandlerFunc
 			controllers.PostCardPayment(c.Writer, c.Request)
 		})
