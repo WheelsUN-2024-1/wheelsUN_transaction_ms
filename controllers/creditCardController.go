@@ -102,22 +102,14 @@ func PostCreditCard(w http.ResponseWriter, r *http.Request) {
 	w.Write(responseJSON)
 }
 
-func GetCreditCardByID(w http.ResponseWriter, r *http.Request) {
-
-	// 1. Extract ID from request path
-	id := r.URL.Query().Get("id") // Assuming ID is passed in the query string
-	if id == "" {
-		http.Error(w, "Missing required parameter 'id' in query string", http.StatusBadRequest)
-		return
-	}
-
-	// 2. Verify database connection
+func GetCreditCardByID(w http.ResponseWriter, r *http.Request, id string) {
+	// 1. Verify database connection
 	if configs.DB == nil {
 		http.Error(w, "Database connection is not initialized", http.StatusInternalServerError)
 		return
 	}
 
-	// 3. Fetch credit card data by ID
+	// 2. Fetch credit card data by ID
 	var creditcard database.CreditCardDao
 	result := configs.DB.First(&creditcard, id)
 	if result.Error != nil {
@@ -131,36 +123,45 @@ func GetCreditCardByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	encryptedNumber, err := decrypt(creditcard.Number)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	encryptedName, err := decrypt(creditcard.Name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	encryptedSecurityCode, err := decrypt(creditcard.SecurityCode)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	encryptedExpirationDate, err := decrypt(creditcard.ExpirationDate)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	creditcard.Number = encryptedNumber
 	creditcard.Name = encryptedName
 	creditcard.SecurityCode = encryptedSecurityCode
 	creditcard.ExpirationDate = encryptedExpirationDate
 
-	// 5. Marshal decrypted data into JSON response
+	// 3. Marshal decrypted data into JSON response
 	responseJSON, err := json.Marshal(creditcard)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// 6. Set response headers and write JSON
+	// 4. Set response headers and write JSON
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(responseJSON)
 }
 
-func PutCreditCard(w http.ResponseWriter, r *http.Request) {
-	// Extraer la ID de la tarjeta de crédito de la URL
-	id := r.URL.Query().Get("id")
-	if id == "" {
-		http.Error(w, "Missing required parameter 'id' in query string", http.StatusBadRequest)
-		return
-	}
-
+func PutCreditCard(w http.ResponseWriter, r *http.Request, id string) {
 	var creditcard database.CreditCardDao
 
 	decoder := json.NewDecoder(r.Body)

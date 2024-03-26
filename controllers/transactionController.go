@@ -149,21 +149,14 @@ func PostCardPayment(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonData)
 }
 
-func GetTransactionReferenceCode(w http.ResponseWriter, r *http.Request) {
-
-	referenceCode := r.URL.Query().Get("referenceCode")
-	if referenceCode == "" {
-		http.Error(w, "Missing required parameter 'referenceCode' in query string", http.StatusBadRequest)
-		return
-	}
-
+func GetTransactionReferenceCode(w http.ResponseWriter, r *http.Request, referenceCode string) {
 	// 2. Verify database connection
 	if configs.DB == nil {
 		http.Error(w, "Database connection is not initialized", http.StatusInternalServerError)
 		return
 	}
 
-	// 3. Fetch credit card data by ID
+	// 3. Fetch transaction data by reference code
 	var transaction database.TransactionDao
 	result := configs.DB.First(&transaction, "reference_code = ?", referenceCode)
 	if result.Error != nil {

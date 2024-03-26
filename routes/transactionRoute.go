@@ -14,9 +14,11 @@ func TransactionRouter(router *gin.Engine) {
 			controllers.PostCardPayment(c.Writer, c.Request)
 		})
 
-		routes.GET("/get", func(c *gin.Context) {
-			// Llama al método GetCreditCardByID del controlador
-			controllers.GetTransactionReferenceCode(c.Writer, c.Request)
+		routes.GET("/get/:referenceCode", func(c *gin.Context) {
+			// Obtén el código de referencia de la URL utilizando c.Param("referenceCode")
+			referenceCode := c.Param("referenceCode")
+			// Llama al método GetTransactionReferenceCode del controlador
+			controllers.GetTransactionReferenceCode(c.Writer, c.Request, referenceCode)
 		})
 
 	}
