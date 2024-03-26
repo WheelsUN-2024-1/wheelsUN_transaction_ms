@@ -19,5 +19,5 @@ func main() {
 	routes.TransactionRouter(router)
 	routes.CreditCardRouter(router)
 
-	router.Run()
+	router.Run(":3000")
 }
