@@ -1,29 +1,23 @@
-# Use the official Go image as a parent image
-FROM golang:1.18 as builder
+# Usar la imagen base oficial de Golang
+FROM golang:latest as builder
 
-# Set the working directory inside the container
+# Establecer el directorio de trabajo
 WORKDIR /app
 
-# Copy the local package files to the container's workspace
+# Copiar el código fuente del proyecto al contenedor
 COPY . .
 
-# Fetch dependencies.
-# Using go mod with go 1.11 or later
-RUN go mod download
-RUN go mod verify
+# Compilar la aplicación Go. Asegúrate de reemplazar 'main.go' con el camino y nombre correctos si es diferente
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o myapp .
 
-# Build the command inside the container.
-# (It may be preferable to build using the -ldflags "-s" to strip the debugging information)
-RUN CGO_ENABLED=0 GOOS=linux go build -v -o myapp
+# Usar una imagen Docker 'scratch' para una imagen más pequeña y segura
+FROM scratch
 
-# Use a Docker multi-stage build to create a lean production image.
-# https://docs.docker.com/develop/develop-images/multistage-build/
-# Use the official Alpine image for a lean production container.
-# Only copy the binary from builder stage
-FROM alpine:latest  
-RUN apk --no-cache add ca-certificates
-WORKDIR /root/
+# Copiar el ejecutable compilado desde el builder al contenedor final
 COPY --from=builder /app/myapp .
 
-# Run the binary program produced by go install
+# Exponer el puerto 3000 en el contenedor
+EXPOSE 3000
+
+# Ejecutar la aplicación Go cuando el contenedor inicie
 CMD ["./myapp"]
