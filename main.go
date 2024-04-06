@@ -19,5 +19,5 @@ func main() {
 	routes.TransactionRouter(router)
 	routes.CreditCardRouter(router)
 
-	router.Run(":3000")
+	router.RunTLS(":3000", "server.cer", "server.key")
 }
