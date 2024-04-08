@@ -102,7 +102,7 @@ func PostCreditCard(w http.ResponseWriter, r *http.Request) {
 	w.Write(responseJSON)
 }
 
-func GetCreditCardByID(w http.ResponseWriter, r *http.Request, id string) {
+func GetCreditCardByID(w http.ResponseWriter, id string) {
 	// 1. Verify database connection
 	if configs.DB == nil {
 		http.Error(w, "Database connection is not initialized", http.StatusInternalServerError)
@@ -111,7 +111,7 @@ func GetCreditCardByID(w http.ResponseWriter, r *http.Request, id string) {
 
 	// 2. Fetch credit card data by ID
 	var creditcard database.CreditCardDao
-	result := configs.DB.First(&creditcard, id)
+	result := configs.DB.Where("credit_card_id = ?", id).Find(&creditcard)
 	if result.Error != nil {
 		// Handle potential database errors gracefully (e.g., check for record not found)
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -159,6 +159,7 @@ func GetCreditCardByID(w http.ResponseWriter, r *http.Request, id string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(responseJSON)
+
 }
 
 func PutCreditCard(w http.ResponseWriter, r *http.Request, id string) {
@@ -178,7 +179,7 @@ func PutCreditCard(w http.ResponseWriter, r *http.Request, id string) {
 	}
 
 	// Update the entry in the database
-	result := configs.DB.Model(&database.CreditCardDao{}).Where("id = ?", id).Updates(&creditcard)
+	result := configs.DB.Model(&database.CreditCardDao{}).Where("credit_card_id = ?", id).Updates(&creditcard)
 	if result.Error != nil {
 		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
 		return
@@ -190,6 +191,39 @@ func PutCreditCard(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(responseJSON)
+}
+
+func DeleteCreditCard(w http.ResponseWriter, id string) {
+
+	query := "DELETE FROM creditCard WHERE credit_card_id = ?"
+
+	var creditCard database.CreditCardDao
+	if configs.DB == nil {
+		http.Error(w, "Database connection is not initialized", http.StatusInternalServerError)
+		return
+	}
+
+	if err := configs.DB.Where("credit_card_id = ?", id).First(&creditCard).Error; err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Verificar si configs.DB es nulo
+
+	result := configs.DB.Exec(query, id)
+	if result.Error != nil {
+		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	responseJSON, err := json.Marshal(creditCard)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(responseJSON)
