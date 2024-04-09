@@ -14,6 +14,11 @@ func TransactionRouter(router *gin.Engine) {
 			controllers.PostCardPayment(c.Writer, c.Request)
 		})
 
+		routes.POST("/createdata", func(c *gin.Context) {
+			// Envolver la función del controlador dentro de gin.HandlerFunc
+			controllers.PostInDatabase(c.Writer, c.Request)
+		})
+
 		routes.GET("/get/:referenceCode", func(c *gin.Context) {
 			// Obtén el código de referencia de la URL utilizando c.Param("referenceCode")
 			referenceCode := c.Param("referenceCode")

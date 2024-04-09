@@ -96,10 +96,7 @@ func PostCardPayment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	fmt.Printf("JSON recibido: %+v\n", payment)
 	// Realizar el pago con tarjeta de crédito
-
 	payment.Transaction.Order.Signature = GetMD5(payment)
 
 	response, err := PostCardPaymentS(payment)
@@ -108,45 +105,72 @@ func PostCardPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Convertir la estructura de respuesta en XML
-	var resp models.Response
-	err = xml.NewDecoder(strings.NewReader(response)).Decode(&resp)
+	// Convertir la estructura de respuesta en XML a una estructura en Go
+	var respXML models.Response
+	err = xml.NewDecoder(strings.NewReader(response)).Decode(&respXML)
 	if err != nil {
 		fmt.Println("Error al decodificar XML:", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Crear el objeto de base de datos
-	var dataBase database.TransactionDao
-	dataBase.ReferenceCode = payment.Transaction.Order.ReferenceCode
-	dataBase.Description = payment.Transaction.Order.Description
-	dataBase.Value = payment.Transaction.Order.AdditionalValues.TX_VALUE.Value
-	dataBase.PaymentMethods = payment.Transaction.PaymentMethod
-	dataBase.State = resp.TransactionResponse.State
-	dataBase.TransactionIdPay = resp.TransactionResponse.TransactionId
-	dataBase.OrderId = resp.TransactionResponse.Order
-	dataBase.TripId = 1
-	dataBase.CreditCardId = 1
+	// Convertir la estructura de respuesta en XML a JSON
+	respJSON, err := json.Marshal(respXML)
+	if err != nil {
+		fmt.Println("Error al convertir XML a JSON:", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-	// Guardar en la base de datos
-	result := configs.DB.Create(&dataBase)
+	var respObj models.ResponseJSON
+	err = json.Unmarshal(respJSON, &respObj)
+	if err != nil {
+		fmt.Println("Error al decodificar JSON:", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Escribir la respuesta JSON en el cuerpo de la respuesta HTTP
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(respJSON)
+}
+
+func PostInDatabase(w http.ResponseWriter, r *http.Request) {
+	// 1. Decode the request body into a TransactionDao struct
+	var transaction database.TransactionDao
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&transaction)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 2. Verify database connection
+	if configs.DB == nil {
+		http.Error(w, "Database connection is not initialized", http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Create the transaction record in the database
+	result := configs.DB.Create(&transaction)
 	if result.Error != nil {
 		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Convertir el objeto de base de datos a JSON
-	jsonData, err := json.Marshal(dataBase)
+	// 4. Marshal the transaction data into JSON response
+	responseJSON, err := json.Marshal(transaction)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Establecer encabezado de respuesta para indicar que se devuelve JSON
+	// 5. Set response headers and write JSON
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(jsonData)
+	w.Write(responseJSON)
+
 }
 
 func GetTransactionReferenceCode(w http.ResponseWriter, r *http.Request, referenceCode string) {
