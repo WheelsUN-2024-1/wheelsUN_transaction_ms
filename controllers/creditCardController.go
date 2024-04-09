@@ -162,6 +162,47 @@ func GetCreditCardByID(w http.ResponseWriter, id string) {
 
 }
 
+func GetCreditCardsByUserID(w http.ResponseWriter, userID string) {
+	// 1. Verify database connection
+	if configs.DB == nil {
+		http.Error(w, "Database connection is not initialized", http.StatusInternalServerError)
+		return
+	}
+
+	// 2. Fetch credit card data by userID
+	var creditcards []database.CreditCardDao
+	result := configs.DB.Where("user_id = ?", userID).Find(&creditcards)
+	if result.Error != nil {
+		// Handle potential database errors gracefully (e.g., check for record not found)
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			http.Error(w, "Credit cards for the user not found", http.StatusNotFound)
+		} else {
+			http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// 3. Decrypt credit card data
+	for i := range creditcards {
+		creditcards[i].Number, _ = decrypt(creditcards[i].Number)
+		creditcards[i].Name, _ = decrypt(creditcards[i].Name)
+		creditcards[i].SecurityCode, _ = decrypt(creditcards[i].SecurityCode)
+		creditcards[i].ExpirationDate, _ = decrypt(creditcards[i].ExpirationDate)
+	}
+
+	// 4. Marshal decrypted data into JSON response
+	responseJSON, err := json.Marshal(creditcards)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 5. Set response headers and write JSON
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(responseJSON)
+}
+
 func PutCreditCard(w http.ResponseWriter, r *http.Request, id string) {
 	var creditcard database.CreditCardDao
 

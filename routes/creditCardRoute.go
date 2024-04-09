@@ -20,6 +20,12 @@ func CreditCardRouter(router *gin.Engine) {
 			// Llama al método GetCreditCardByID del controlador
 			controllers.GetCreditCardByID(c.Writer, id)
 		})
+		routes.GET("/cards/:id", func(c *gin.Context) {
+			// Obtén el ID de la URL utilizando c.Param("id")
+			id := c.Param("id")
+			// Llama al método GetCreditCardByID del controlador
+			controllers.GetCreditCardsByUserID(c.Writer, id)
+		})
 
 		routes.PUT("/put/:id", func(c *gin.Context) {
 			// Obtén el ID de la URL utilizando c.Param("id")
