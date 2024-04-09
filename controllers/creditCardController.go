@@ -83,6 +83,7 @@ func PostCreditCard(w http.ResponseWriter, r *http.Request) {
 	creditcard.Name, err = encrypt(creditcard.Name)
 	creditcard.SecurityCode, err = encrypt(creditcard.SecurityCode)
 	creditcard.ExpirationDate, err = encrypt(creditcard.ExpirationDate)
+	creditcard.Brand, err = encrypt(creditcard.Brand)
 
 	// Crear la entrada en la base de datos
 	result := configs.DB.Create(&creditcard)
@@ -142,11 +143,17 @@ func GetCreditCardByID(w http.ResponseWriter, id string) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	encryptedBrand, err := decrypt(creditcard.Brand)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	creditcard.Number = encryptedNumber
 	creditcard.Name = encryptedName
 	creditcard.SecurityCode = encryptedSecurityCode
 	creditcard.ExpirationDate = encryptedExpirationDate
+	creditcard.Brand = encryptedBrand
 
 	// 3. Marshal decrypted data into JSON response
 	responseJSON, err := json.Marshal(creditcard)
@@ -188,6 +195,7 @@ func GetCreditCardsByUserID(w http.ResponseWriter, userID string) {
 		creditcards[i].Name, _ = decrypt(creditcards[i].Name)
 		creditcards[i].SecurityCode, _ = decrypt(creditcards[i].SecurityCode)
 		creditcards[i].ExpirationDate, _ = decrypt(creditcards[i].ExpirationDate)
+		creditcards[i].Brand, _ = decrypt(creditcards[i].Brand)
 	}
 
 	// 4. Marshal decrypted data into JSON response

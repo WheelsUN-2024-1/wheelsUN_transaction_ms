@@ -10,6 +10,7 @@ type CreditCardDao struct {
 	Name           string `json:"name"`
 	SecurityCode   string `json:"securityCode"`
 	ExpirationDate string `json:"expirationDate"`
+	Brand          string `json:"brand"`
 }
 
 func (CreditCardDao) TableName() string {
