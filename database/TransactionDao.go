@@ -9,7 +9,7 @@ type TransactionDao struct {
 	Value          uint   `json:"value"`
 	PaymentMethods string `json:"paymentMethods"`
 	State          string `json:"state"`
-	TripId         int    `json:"tripId"`
+	TripId         string    `json:"tripId"`
 	CreditCardId   int    `json:"creditCardId"`
 }
 
